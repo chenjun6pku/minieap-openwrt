@@ -1,0 +1,35 @@
+name: Build Minieap IPK
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch:
+          - x86_64
+          - mipsel_24kc
+    name: Build for ${{ matrix.arch }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build package with OpenWrt SDK
+        uses: openwrt/gh-action-sdk@main
+        env:
+          ARCH: ${{ matrix.arch }}
+          PACKAGES: minieap  # 只编译 minieap 包（仓库根目录需包含 Makefile）
+          NO_REFRESH: "1"   # 可选：避免不必要的 feeds 更新，如果仓库已准备好
+
+      - name: Upload IPK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: minieap-${{ matrix.arch }}.ipk
+          path: bin/packages/${{ matrix.arch }}/packages/minieap_*.ipk
+          if-no-files-found: error
