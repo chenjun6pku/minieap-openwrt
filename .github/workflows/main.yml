@@ -9,6 +9,10 @@ jobs:
   build:
     name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-latest
+    env:
+      # 统一存放 OpenWrt 版本号，修改一处即可同时改变编译SDK版本和上传路径
+      OPENWRT_VERSION: 24.10.0
+    
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +41,7 @@ jobs:
         uses: openwrt/gh-action-sdk@v7
         env:
           # 指定架构（对应 Docker 容器的 Tag）
-          ARCH: ${{ matrix.target }}-24.10.0
+          ARCH: ${{ matrix.target }}-${{ env.OPENWRT_VERSION }}
           
           # 指定要编译的包名 (必须与 Makefile 中的 PKG_NAME 一致)
           PACKAGES: minieap
@@ -60,5 +64,29 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: minieap-24.10.0-${{ matrix.arch }}
+          name: minieap-${{ env.OPENWRT_VERSION }}-${{ matrix.arch }}
           path: artifact/*.ipk
+
+      - name: Upload to Private Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASS }}
+          
+          # 源文件：刚才整理好的 artifact 文件夹下的所有 ipk
+          source: "artifact/*.ipk"
+          
+          # 目标路径：根据架构动态区分文件夹
+          # 例如：/data/openwrt/minieap/x86_64/
+          target: "/var/www/html/openwrt/minieap/${{ matrix.arch }}"
+
+          target: "/data/openwrt/${{ env.OPENWRT_VERSION }}/packages/${{ matrix.arch }}/"
+          
+          # 关键参数：去除源路径中的第一层目录 (artifact/)
+          # 否则服务器上会变成 /var/.../x86_64/artifact/xxx.ipk
+          strip_components: 1
+          
+          # 自动创建不存在的目录
+          rm: false
