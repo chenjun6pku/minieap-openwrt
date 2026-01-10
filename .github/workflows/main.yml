@@ -1,35 +1,64 @@
-name: Test Build
+name: Build Minieap (Official SDK)
 
 on:
-  pull_request:
-    branches:
-      - main
+  push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: ${{ matrix.arch }} build
+    name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        arch:
-          - x86_64
-          - mips_24kc
-          - mipsel_24kc
+        include:
+          # --- x86_64 架构 ---
+          - arch: x86_64
+            # 对应 OpenWrt 的目标名称 (Target/Subtarget)
+            target: x86-64
+          
+          # --- mips_24kc 架构 ---
+          # ath79/generic 是最典型的 mips_24kc 平台
+          - arch: mips_24kc
+            target: ath79-generic
+
+          # --- mipsel_24kc 架构 ---
+          # ramips/mt7621 是最典型的 mipsel_24kc 平台
+          - arch: mipsel_24kc
+            target: ramips-mt7621
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Build
-        uses: openwrt/gh-action-sdk@main
+      - name: Build Package using Official SDK
+        # 使用官方维护的 Action
+        uses: openwrt/gh-action-sdk@v7
         env:
-          ARCH: ${{ matrix.arch }}
+          # 指定架构（对应 Docker 容器的 Tag）
+          ARCH: ${{ matrix.target }}-24.10.0
+          
+          # 指定要编译的包名 (必须与 Makefile 中的 PKG_NAME 一致)
           PACKAGES: minieap
+          
+          # 禁用签名检查 (如果只是个人使用，不需要复杂的密钥配置)
+          NO_SHFMT_CHECK: 1
+          NO_REFRESH_CHECK: 1
+          
+          # 定义这个仓库本身就是一个 Feed
+          FEEDNAME: action
 
-      - name: Store packages
+      - name: Organize Artifacts
+        run: |
+          mkdir -p artifact
+          # 查找生成的 IPK 文件
+          # 官方 Action 默认将结果放在 bin/packages/ 下
+          find bin/packages/ -name "minieap*.ipk" -exec cp {} artifact/ \;
+          ls -l artifact/
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.arch}}-packages
-          path: bin/packages/${{ matrix.arch }}/packages/*.ipk
+          name: minieap-24.10.0-${{ matrix.arch }}
+          path: artifact/*.ipk
