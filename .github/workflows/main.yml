@@ -79,9 +79,6 @@ jobs:
           source: "artifact/*.ipk"
           
           # 目标路径：根据架构动态区分文件夹
-          # 例如：/data/openwrt/minieap/x86_64/
-          target: "/var/www/html/openwrt/minieap/${{ matrix.arch }}"
-
           target: "/data/openwrt/${{ env.OPENWRT_VERSION }}/packages/${{ matrix.arch }}/"
           
           # 关键参数：去除源路径中的第一层目录 (artifact/)
