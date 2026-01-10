@@ -1,0 +1,43 @@
+name: Build minieap for OpenWrt 24.10
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  build:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:                   # ← 这里改成 target-版本 格式
+          - x86_64-24.10.0        # 或者用最新的 24.10.5
+          - mips_24kc-24.10.0
+          - mipsel_24kc-24.10.0
+          - aarch64_generic-24.10.0
+          - arm_cortex-a7-24.10.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 最重要的步骤：使用官方 action
+      - name: Build minieap with official SDK 24.10
+        uses: openwrt/gh-action-sdk@main
+        env:
+          ARCH: ${{ matrix.target }}
+
+      # 上传产物（强烈推荐）
+      - name: Upload the minieap ipk
+        uses: actions/upload-artifact@v4
+        with:
+          name: minieap-${{ matrix.target }}
+          path: bin/packages/*/*/minieap/*.ipk   # 24.10 结构通常是这样
+          if-no-files-found: error
